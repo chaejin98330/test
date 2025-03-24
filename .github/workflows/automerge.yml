@@ -1,23 +1,16 @@
-name: Enable Auto-Merge
-
+name: Auto-Merge
 on:
-  repository_dispatch:
-    types: [repository-created] # Trigger when a repository is created
+  pull_request_target:
+    types: [labeled]
 
 jobs:
   enable-auto-merge:
     runs-on: ubuntu-latest
-    steps:
-      - name: Enable Auto-Merge
-        run: |
-          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/permissions \
-            -d '{"enabled": true}'
 
-      - name: Enable Auto-Merge via GraphQL
-        run: |
-          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "mutation { enablePullRequestAutoMerge(input: { pullRequestId: \"PULL_REQUEST_ID\", mergeMethod: MERGE }) { clientMutationId } }"}' \
-            https://api.github.com/graphql
+    # Specifically check that dependabot (or another trusted party) created this pull-request, and that it has been labelled correctly.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependencies')
+    steps:
+    - uses: alexwilson/enable-github-automerge-action@main
+      with:
+        github-token: "${{ secrets.GITHUB_TOKEN }}"
+        merge-method: "MERGE"
